@@ -19,6 +19,10 @@ inline bool operator==(const Position &lhs, const Position &rhs) {
   return lhs.x_asis == rhs.x_asis and lhs.y_asis == rhs.y_asis;
 };
 
+inline bool operator!=(const Position &lhs, const Position &rhs) {
+  return not(lhs == rhs);
+};
+
 enum cell_t {
   NONE,
   PATH,
@@ -47,26 +51,44 @@ private:
   Position m_start_pos;
 
   void init_path() {
+    const std::vector<direction_t> deltas = {N, NE, L, SE, S, SO, O, NO};
+
+    auto is_valid = [&](const Position &p) -> bool {
+      return !is_outside(p) && m_board[p.x_asis][p.y_asis] != INVISIBLE;
+    };
 
     Position current = m_start_pos;
-    m_path.insert(m_path.end(),current);
-    std::queue<Position> q;
-    q.push(current);
+    m_path.clear();
+    m_path.push_back(current);
 
-    while (!q.empty()) {
+    Position prev = current;
 
-      Position current = q.front();
-      q.pop();
-
-      for (direction_t dir : {N, S, L, O, NO, NE, SO, SE}) {
-        if (is_blocked(current, dir))
-          continue;
-
+    while (true) {
+      bool moved = false;
+      // Testar todas direções em sentido horário
+      for (direction_t dir : deltas) {
         Position next = walk_to(current, dir);
-        if (std::find(m_path.begin(), m_path.end(), next) == m_path.end()) {
+        // Para evitar voltar para onde veio, cheque se next é diferente do
+        // anterior
+        if (next == prev)
+          continue;
+        if (is_valid(next)) {
+          // Se já fechou o ciclo, para
+          if (next == m_start_pos)
+            return;
+
           m_path.push_back(next);
-          q.push(next);
+          prev = current;
+          current = next;
+          moved = true;
+          break; // achou próxima posição válida, sai do for para continuar no
+                 // while
         }
+      }
+      if (!moved) {
+        // Não achou para onde ir, ciclo impossível
+        std::cerr << "Caminho circular não encontrado!\n";
+        return;
       }
     }
   }
@@ -113,6 +135,11 @@ public:
   Map(std::vector<std::vector<cell_t>> input_matrix, Position start_pos)
       : m_board(std::move(input_matrix)), m_start_pos(start_pos) {
     init_path();
+    std::cout << "[ ";
+    for (const auto &a : m_path) {
+      std::cout << cell_2_symbol.at(m_board[a.x_asis][a.y_asis]) << " ";
+    }
+    std::cout << "]\n";
   }
 
   cell_t get_cell(std::size_t row, std::size_t col) const {

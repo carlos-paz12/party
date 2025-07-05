@@ -112,7 +112,7 @@ public:
   }
 
   static void run() {
-    for (turns_played = 0; turns_played < 5; ++turns_played) {
+    for (turns_played = 0; turns_played < 10; ++turns_played) {
       process();
       update();
       render();
@@ -122,14 +122,14 @@ public:
 private:
   static void process() {
     if (m_state == WELCOME) {
-      std::cin.get();
+      std::cout << " Press <enter> to continue. ";
+      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       return;
     }
     if (m_state == PLAYING) {
       std::cout << "Vez de " << m_current_player->get_name();
-      char action{};
-      std::cin >> action;
-      std::cin.ignore();
+      std::cout << " Press <enter> to continue. ";
+      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
   }
 
@@ -149,73 +149,42 @@ private:
       m_current_player =
           std::make_unique<Player>(m_players[turns_played % m_players.size()]);
 
-      // Sortear número de passos (1-9)
-      std::default_random_engine rng(static_cast<unsigned>(time(nullptr)));
+      // Para simular passos, vamos usar a quantidade sorteada para chamar
+      // next_pos() tantas vezes
+      std::random_device rd;
+      //<! Para  generar números aleatorios
+      std::mt19937 g(rd());
       std::uniform_int_distribution<int> steps_dist(1, 9);
-      int steps = steps_dist(rng);
+      int steps = steps_dist(g);
       std::cout << m_current_player->get_name() << " sorteou " << steps
                 << " passos!\n";
 
-      Position current_pos = m_current_player->get_position();
-      Position new_pos = current_pos;
+      Position new_pos = m_current_player->get_position();
 
-      // Mover passo a passo
       for (int i = 0; i < steps; ++i) {
-        // Gerar direção aleatória (0-3: cima, direita, baixo, esquerda)
-        std::uniform_int_distribution<int> dir_dist(0, 3);
-        int direction = dir_dist(rng);
+        // Pega a próxima posição do caminho circular
+        new_pos = m_map->next_pos();
 
-        // Calcular nova posição temporária
-        Position temp_pos = new_pos;
-        switch (direction) {
-        case 0:
-          temp_pos.x_asis--;
-          break; // Cima
-        case 1:
-          temp_pos.y_asis++;
-          break; // Direita
-        case 2:
-          temp_pos.x_asis++;
-          break; // Baixo
-        case 3:
-          temp_pos.y_asis--;
-          break; // Esquerda
-        }
-
-        // Verificar se a posição é válida
-        if (temp_pos.x_asis >= 0 &&
-            temp_pos.x_asis < static_cast<int>(m_map->rows()) &&
-            temp_pos.y_asis >= 0 &&
-            temp_pos.y_asis < static_cast<int>(m_map->cols())) {
-
-          cell_t cell = m_map->get_cell(temp_pos.x_asis, temp_pos.y_asis);
-          if (cell == PATH || cell == WIN_COIN || cell == LOST_COIN ||
-              cell == STAR) {
-            new_pos = temp_pos;
-
-            // Processar efeito da célula
-            switch (cell) {
-            case WIN_COIN:
-              m_current_player->add_coins(10);
-              std::cout << " +10 moedas!";
-              break;
-            case LOST_COIN:
-              m_current_player->reduce_coins(5);
-              std::cout << " -5 moedas!";
-              break;
-            case STAR:
-              m_current_player->add_stars(1);
-              std::cout << " +1 estrela!";
-              break;
-            default:
-              break;
-            }
-          }
+        cell_t cell = m_map->get_cell(new_pos.x_asis, new_pos.y_asis);
+        switch (cell) {
+        case WIN_COIN:
+          m_current_player->add_coins(10);
+          std::cout << " +10 moedas!";
+          break;
+        case LOST_COIN:
+          m_current_player->reduce_coins(5);
+          std::cout << " -5 moedas!";
+          break;
+        case STAR:
+          m_current_player->add_stars(1);
+          std::cout << " +1 estrela!";
+          break;
+        default:
+          break;
         }
         std::cout << " [" << new_pos.x_asis << "," << new_pos.y_asis << "]";
       }
 
-      // Atualizar posição final
       m_current_player->reset_position(new_pos);
       std::cout << "\n"
                 << m_current_player->get_name() << " parou em ["
